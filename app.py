@@ -10,9 +10,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 
-# Load Telegram Token Securely
+# Load Telegram Token from Environment Variables
 TOKEN = "7874371911:AAE-H9SFpu0dILwoad_kWu3103T9JqxnfaA"# Recommended: Set in environment variable
-USER_ID = 5142359126  # Replace with actual user ID dynamically if needed
+USER_ID = 5142359126  # Set dynamically if needed
 
 # Load WhatsApp chat data
 def load_chat(file_path):
@@ -116,8 +116,4 @@ async def main():
     await app.run_polling()
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    if loop.is_running():
-        loop.create_task(main())  # If loop is already running, run main in a new task
-    else:
-        loop.run_until_complete(main())
+    asyncio.run(main())
