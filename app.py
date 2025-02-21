@@ -7,6 +7,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
+import os
 
 # Load and preprocess WhatsApp chat data
 def load_chat(file_path):
@@ -48,8 +49,8 @@ def get_response(user_input, vectorizer, vectors, data):
     best_responses = [data.iloc[idx]['response'] for idx in best_matches if similarities[idx] > 0.2]
     return random.choice(best_responses) if best_responses else "Sorry, I don't understand."
 
-# Initialize chatbot data
-file_paths = [r"J:\\WhatsApp Chat with 🦋 حب(1).txt", r"J:\\WhatsApp Chat with 🦋 حب(2).txt"]
+# Initialize chatbot data (Use relative paths to load chat files in the same directory)
+file_paths = ["./WhatsApp Chat with 🦋 حب(1).txt", "./WhatsApp Chat with 🦋 حب(2).txt"]
 data = prepare_chatbot_data(file_paths)
 vectorizer, vectors, chatbot_data = train_chatbot(data)
 
