@@ -84,7 +84,8 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat))
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()  # Create a new event loop
+    asyncio.set_event_loop(loop)  # Set it as the active loop
     loop.create_task(send_random_messages(app, USER_ID))  # Start random messaging
 
     print("Bot is running...")
