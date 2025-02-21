@@ -6,7 +6,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from telegram import Update, error
+from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 
 # Load and preprocess WhatsApp chat data
@@ -16,17 +16,17 @@ def load_chat(file_path):
 
     chat_data = []
     for line in lines:
-        match = re.match(r"\d{2}/\d{2}/\d{2}, \d{1,2}:\d{2}\s?[ap]m - (.+?): (.+)", line)
+        match = re.match(r"(\d{1,2}/\d{1,2}/\d{2}), (\d{1,2}:\d{2}\s?[APap][Mm]) - (.*?): (.+)", line)
         if match:
-            sender, message = match.groups()
+            _, _, sender, message = match.groups()
             chat_data.append((sender, message))
     return chat_data
 
 # Process multiple chat files
 def prepare_chatbot_data(file_paths):
-    conversations = []
-    messages = []  
+    conversations, messages = [], []
     context_window = 3  
+
     for file_path in file_paths:
         chat_data = load_chat(file_path)
         messages.extend([msg for _, msg in chat_data])  
@@ -35,6 +35,7 @@ def prepare_chatbot_data(file_paths):
             response = chat_data[i + context_window][1]
             if chat_data[i + context_window][0].lower() != "pranesh":  
                 conversations.append((context, response))
+
     return pd.DataFrame(conversations, columns=['input', 'response']), messages
 
 # Train chatbot
@@ -51,35 +52,29 @@ def get_response(user_input, vectorizer, vectors, data):
     best_responses = [data.iloc[idx]['response'] for idx in best_matches if similarities[idx] > 0.3]
     return random.choice(best_responses) if best_responses else "Sorry, I don't understand."
 
-# Send a message at a specific time
+# Send scheduled messages
 async def send_scheduled_message(application, user_id, message, target_hour, target_minute):
-    now = datetime.now()
-    target_time = now.replace(hour=target_hour, minute=target_minute, second=0, microsecond=0)  
-    if now > target_time:  
-        target_time += timedelta(days=1)
-    wait_time = (target_time - now).total_seconds()
-    await asyncio.sleep(wait_time)  
-    try:
+    while True:
+        now = datetime.now()
+        target_time = now.replace(hour=target_hour, minute=target_minute, second=0, microsecond=0)  
+        if now > target_time:
+            target_time += timedelta(days=1)
+        wait_time = (target_time - now).total_seconds()
+        await asyncio.sleep(wait_time)
         await application.bot.send_message(chat_id=user_id, text=message)
-    except error.BadRequest as e:
-        print(f"Error: {e}")
 
 # Send a random message at a random time during the day
 async def send_random_message(application, user_id, messages):
-    now = datetime.now()
-    random_hour = random.randint(10, 18)  
-    random_minute = random.randint(0, 59)
-    target_time = now.replace(hour=random_hour, minute=random_minute, second=0, microsecond=0)  
-    if now > target_time:
-        target_time += timedelta(days=1)
-    wait_time = (target_time - now).total_seconds()
-    await asyncio.sleep(wait_time)
-    
-    random_message = random.choice(messages)
-    try:
-        await application.bot.send_message(chat_id=user_id, text=random_message)
-    except error.BadRequest as e:
-        print(f"Error: {e}")
+    while True:
+        now = datetime.now()
+        random_hour = random.randint(10, 18)  
+        random_minute = random.randint(0, 59)
+        target_time = now.replace(hour=random_hour, minute=random_minute, second=0, microsecond=0)  
+        if now > target_time:
+            target_time += timedelta(days=1)
+        wait_time = (target_time - now).total_seconds()
+        await asyncio.sleep(wait_time)
+        await application.bot.send_message(chat_id=user_id, text=random.choice(messages))
 
 # Initialize chatbot data
 file_paths = [
@@ -92,31 +87,30 @@ data, chat_messages = prepare_chatbot_data(file_paths)
 vectorizer, vectors, chatbot_data = train_chatbot(data)
 
 TOKEN = "7874371911:AAE-H9SFpu0dILwoad_kWu3103T9JqxnfaA"
-USER_ID = 5142359126  
+USER_ID = 5142359126  # Replace with the actual user ID dynamically
 
 async def start(update: Update, context: CallbackContext):
-    await update.message.reply_text("Hello! I'm your chatbot. Type a message to chat with me.")
+    user_id = update.effective_user.id
+    await update.message.reply_text(f"Hello {update.effective_user.first_name}! I'm your chatbot. Type a message to chat with me.")
 
 async def chat(update: Update, context: CallbackContext):
     user_input = update.message.text
     response = get_response(user_input, vectorizer, vectors, chatbot_data)
     await update.message.reply_text(response)
 
-def main():
+async def main():
     app = Application.builder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat))
 
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
+    loop = asyncio.get_running_loop()
     loop.create_task(send_scheduled_message(app, USER_ID, "Good morning Domar! ☀️💖", 8, 30))
-    loop.create_task(send_scheduled_message(app, USER_ID, "Good night Domar ♥️💖", 21, 30))
+    loop.create_task(send_scheduled_message(app, USER_ID, "Good night Domar ♥️💖", 22, 30))
     loop.create_task(send_random_message(app, USER_ID, chat_messages))  
 
-    print("Bot is running...")
-    app.run_polling()
+    print("Bot is running... (using polling)")
+    await app.run_polling()
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
