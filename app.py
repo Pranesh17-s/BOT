@@ -9,13 +9,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 from telegram import Update, error
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 
-# Get current IST time correctly
-def get_ist_time():
-    now = datetime.now()
-    if now.utcoffset() == timedelta(hours=5, minutes=30):
-        return now  
-    return datetime.utcnow().replace(tzinfo=timezone.utc) + timedelta(hours=5, minutes=30)
-
 # Load and preprocess WhatsApp chat data
 def load_chat(file_path):
     with open(file_path, 'r', encoding='utf-8') as file:
@@ -58,32 +51,35 @@ def get_response(user_input, vectorizer, vectors, data):
     best_responses = [data.iloc[idx]['response'] for idx in best_matches if similarities[idx] > 0.3]
     return random.choice(best_responses) if best_responses else "Sorry, I don't understand."
 
-# Send a message at a specific time (IST)
+# Get IST time safely
+def get_ist_time():
+    now = datetime.now(timezone.utc)  
+    return now.astimezone(timezone(timedelta(hours=5, minutes=30)))  
+
+# Send a message at a specific IST time
 async def send_scheduled_message(application, user_id, message, target_hour, target_minute):
-    now = get_ist_time()
-    target_time = now.replace(hour=target_hour, minute=target_minute, second=0, microsecond=0)
+    ist_now = get_ist_time()
+    target_time = ist_now.replace(hour=target_hour, minute=target_minute, second=0, microsecond=0)  
     
-    if now > target_time:  
+    if ist_now > target_time:  
         target_time += timedelta(days=1)
 
-    wait_time = (target_time - now).total_seconds()
+    wait_time = (target_time - ist_now).total_seconds()
     await asyncio.sleep(wait_time)  
     try:
         await application.bot.send_message(chat_id=user_id, text=message)
     except error.BadRequest as e:
         print(f"Error: {e}")
 
-# Send a random message at a random time during the day
+# Send a random message at a random IST time
 async def send_random_message(application, user_id, messages):
-    now = get_ist_time()
+    ist_now = get_ist_time()
     random_hour = random.randint(10, 18)  
     random_minute = random.randint(0, 59)
-    target_time = now.replace(hour=random_hour, minute=random_minute, second=0, microsecond=0)  
-    
-    if now > target_time:
+    target_time = ist_now.replace(hour=random_hour, minute=random_minute, second=0, microsecond=0)  
+    if ist_now > target_time:
         target_time += timedelta(days=1)
-    
-    wait_time = (target_time - now).total_seconds()
+    wait_time = (target_time - ist_now).total_seconds()
     await asyncio.sleep(wait_time)
     
     random_message = random.choice(messages)
@@ -122,11 +118,11 @@ def main():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
-    # Schedule messages in IST
-    loop.create_task(send_scheduled_message(app, USER_ID, "Good morning Domar! ☀️💖", 6, 30))
-    loop.create_task(send_scheduled_message(app, USER_ID, "Saptiya? 🍽️💖", 8, 30))
-    loop.create_task(send_scheduled_message(app, USER_ID, "Saptiya? 🍽️💖", 13, 45))
-    loop.create_task(send_scheduled_message(app, USER_ID, "Saptiya? 🍽️💖", 21, 30))
+    # Schedule messages at the correct IST time
+    loop.create_task(send_scheduled_message(app, USER_ID, "Saptiya? 😘💖", 8, 30))  # Morning 8:30 AM IST
+    loop.create_task(send_scheduled_message(app, USER_ID, "Saptiya? 🍽️💖", 13, 45))  # Afternoon 1:45 PM IST
+    loop.create_task(send_scheduled_message(app, USER_ID, "Saptiya? 🌙💖", 21, 30))  # Night 9:30 PM IST
+    loop.create_task(send_scheduled_message(app, USER_ID, "Good morning Domar! ☀️💖", 6, 30))  # Morning 6:30 AM IST
     
     loop.create_task(send_random_message(app, USER_ID, chat_messages))  
 
