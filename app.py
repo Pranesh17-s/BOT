@@ -124,7 +124,7 @@ data, chat_messages = prepare_chatbot_data(file_paths)
 vectorizer, vectors, chatbot_data = train_chatbot(data)
 
 # Bot credentials
-TOKEN = "7874371911:AAE-H9SFpu0dILwoad_kWu3103T9JqxnfaA"
+TOKEN = "7874371911:AAHaY_9DaclB_P3FIUdQo2NJrKIS9Wpzv68"
 USER_ID = 5142359126
 
 # Bot handlers
